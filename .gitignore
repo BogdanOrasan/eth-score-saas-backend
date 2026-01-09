@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+
+# Logs & runtime
+logs/
+*.log
+
+# Backups / experiments
+*.bak*
+backtest_results*.csv
+grid_search_results.csv
+
+# OS
+.DS_Store
