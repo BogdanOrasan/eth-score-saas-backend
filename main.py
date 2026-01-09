@@ -99,6 +99,17 @@ def _get_int(name: str, default: int) -> int:
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://app:app@localhost:5432/ethscore")
 
+# Strip DSN query params that can break certain drivers/poolers (seen on Supabase/pgBouncer setups)
+try:
+    from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+    _u = urlsplit(DATABASE_URL)
+    _q = [(k, v) for (k, v) in parse_qsl(_u.query, keep_blank_values=True)
+          if k not in ("prepare_threshold", "statement_cache_size")]
+    DATABASE_URL = urlunsplit((_u.scheme, _u.netloc, _u.path, urlencode(_q), _u.fragment))
+except Exception:
+    pass
+
+
 # psycopg3 supports prepare_threshold; psycopg2 does not.
 # So we only pass that connect_arg when using the psycopg (v3) driver.
 _use_psycopg3 = "+psycopg://" in DATABASE_URL or DATABASE_URL.startswith("postgresql+psycopg://")
