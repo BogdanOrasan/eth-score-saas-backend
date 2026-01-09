@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query
 import requests
+import os
 
 from app.ai.schemas import OverlayRequest
 from app.ai.overlay_heuristic import build_overlay as build_overlay_heuristic
@@ -7,12 +8,15 @@ from app.ai.audit_logger import log_ai_overlay
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
+# Base URL for self-calls (Render listens on $PORT, not hardcoded 8000)
+SELF_BASE_URL = os.getenv("SELF_BASE_URL") or f"http://127.0.0.1:{os.getenv('PORT', '8000')}"
+
 
 @router.get("/plan_with_ai")
 def plan_with_ai(current_exposure: float = Query(..., ge=0.0, le=1.0)):
     # 1) call existing deterministic plan endpoint
     r = requests.get(
-        "http://localhost:8000/portfolio/plan",
+        f"{SELF_BASE_URL}/portfolio/plan",
         params={"current_exposure": current_exposure},
         timeout=10
     )
@@ -22,7 +26,7 @@ def plan_with_ai(current_exposure: float = Query(..., ge=0.0, le=1.0)):
     # 2) fetch config snapshot from /health (for thresholds / weights)
     cfg = {}
     try:
-        h = requests.get("http://localhost:8000/health", timeout=5)
+        h = requests.get(f"{SELF_BASE_URL}/health", timeout=5)
         if h.ok:
             cfg = (h.json() or {}).get("config", {}) or {}
     except Exception:
