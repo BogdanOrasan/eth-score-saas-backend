@@ -103,7 +103,9 @@ engine = create_engine(
     pool_pre_ping=True,
     connect_args={
         "prepare_threshold": 0,
-        "statement_cache_size": 0,
+    },
+    execution_options={
+        "compiled_cache": None
     },
 )
 
