@@ -97,18 +97,19 @@ def _get_int(name: str, default: int) -> int:
     except ValueError:
         return int(default)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://app:app@localhost:5432/ethscore")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://app:app@localhost:5432/ethscore")
+
+# psycopg3 supports prepare_threshold; psycopg2 does not.
+# So we only pass that connect_arg when using the psycopg (v3) driver.
+_use_psycopg3 = "+psycopg://" in DATABASE_URL or DATABASE_URL.startswith("postgresql+psycopg://")
+_connect_args = {"prepare_threshold": 0} if _use_psycopg3 else {}
+
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    connect_args={
-        "prepare_threshold": 0,
-    },
-    execution_options={
-        "compiled_cache": None
-    },
+    connect_args=_connect_args,
+    execution_options={"compiled_cache": None},
 )
-
 # Decision thresholds (Option 1: EXIT only by weighted score)
 ACCUMULATE_THRESHOLD = _get_int("ACCUMULATE_THRESHOLD", 20)
 REDUCE_THRESHOLD = _get_int("REDUCE_THRESHOLD", -20)
