@@ -98,7 +98,7 @@ def _get_int(name: str, default: int) -> int:
         return int(default)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://app:app@localhost:5432/ethscore")
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={"prepare_threshold": 0})
 
 # Decision thresholds (Option 1: EXIT only by weighted score)
 ACCUMULATE_THRESHOLD = _get_int("ACCUMULATE_THRESHOLD", 20)
