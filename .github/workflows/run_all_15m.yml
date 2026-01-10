@@ -1,0 +1,22 @@
+name: Trigger backend run_all (every 15m)
+
+on:
+  schedule:
+    # GitHub schedule uses UTC
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call backend /admin/run_all
+        run: |
+          set -euo pipefail
+          URL="https://eth-score-saas-backend.onrender.com/admin/run_all"
+
+          echo "POST $URL"
+          # retry a bit in case Render is waking up / network hiccup
+          curl -fsS --retry 3 --retry-delay 5 -X POST "$URL"
+          echo ""
+          echo "OK"
