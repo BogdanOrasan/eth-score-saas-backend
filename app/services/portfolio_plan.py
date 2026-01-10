@@ -15,20 +15,37 @@ def compute_portfolio_plan(
     Avoids importing from main/router modules (prevents circular imports).
     """
     d = None
-    with engine.begin() as conn:
-        row = conn.execute(
-            text("""
-            SELECT ts, decision, confidence, details
-            FROM decisions
-            WHERE symbol=:symbol
-            ORDER BY ts DESC
-            LIMIT 1
-            """),
-            dict(symbol=symbol)
-        ).fetchone()
-        if row:
-            d = {"ts": row[0], "decision": row[1], "confidence": int(row[2]), "details": row[3]}
-
+    try:
+        with engine.begin() as conn:
+                row = conn.execute(
+                    text("""
+                    SELECT ts, decision, confidence, details
+                    FROM decisions
+                    WHERE symbol=:symbol
+                    ORDER BY ts DESC
+                    LIMIT 1
+                    """),
+                    dict(symbol=symbol)
+                ).fetchone()
+                if row:
+                    d = {"ts": row[0], "decision": row[1], "confidence": int(row[2]), "details": row[3]}
+        
+    except Exception as e:
+        # DB unavailable (or other runtime error) -> safe fallback so API doesn't 500
+        # NOTE: This keeps the service usable even when the DB/pooler is down.
+        return {
+            'symbol': symbol,
+            'ts': __import__('datetime').datetime.utcnow().isoformat() + 'Z',
+            'decision': 'HOLD',
+            'confidence': 0,
+            'weighted_score': 0.0,
+            'scores': {'4h': 0.0, '1d': 0.0, '1w': 0.0},
+            'step_percent': 0.0,
+            'current_exposure': float(current_exposure),
+            'target_exposure': float(current_exposure),
+            'adjusted_step_percent': 0.0,
+            'hint': 'db_unavailable_fallback',
+        }
     if not d:
         raise HTTPException(status_code=404, detail="No decision yet. Try POST /admin/run_all")
 
