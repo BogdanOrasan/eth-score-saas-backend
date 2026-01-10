@@ -44,6 +44,7 @@ import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from app.routers.portfolio_ai import router as portfolio_ai_router
+from app.services.portfolio_plan import compute_portfolio_plan
 from app.routers.ai_overlay import router as ai_router
 from sqlalchemy import create_engine, text
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -909,59 +910,14 @@ def portfolio_plan(
     If current_exposure is provided, returns target_exposure and an adjusted step
     that respects MIN_EXPOSURE (except EXIT).
     """
-    d = None
-    with engine.begin() as conn:
-        row = conn.execute(
-            text("""
-            SELECT ts, decision, confidence, details
-            FROM decisions
-            WHERE symbol=:symbol
-            ORDER BY ts DESC
-            LIMIT 1
-            """),
-            dict(symbol=SYMBOL_ETHUSDT)
-        ).fetchone()
-        if row:
-            d = {"ts": row[0], "decision": row[1], "confidence": int(row[2]), "details": row[3]}
-
-    if not d:
-        raise HTTPException(status_code=404, detail="No decision yet. Try POST /admin/run_all")
-
-    plan = d["details"].get("plan", None)
-    if not plan:
-        raise HTTPException(status_code=500, detail="No plan in details (unexpected). Run POST /admin/run_all again.")
-
-    weighted_score = d["details"].get("weighted_score")
-    scores = d["details"].get("scores")
-
-    step_percent = int(plan.get("step_percent"))
-    hint = plan.get("hint")
-
-    target_exposure = None
-    adjusted_step_percent = None
-
-    if current_exposure is not None:
-        # apply step to exposure
-        raw_target = clamp(float(current_exposure) + (step_percent / 100.0), 0.0, 1.0)
-        if d["decision"] != "EXIT":
-            raw_target = max(raw_target, float(MIN_EXPOSURE))
-        target_exposure = float(raw_target)
-        adjusted_step_percent = int(round((target_exposure - float(current_exposure)) * 100.0))
-
-    return {
-        "symbol": SYMBOL_ETHUSDT,
-        "ts": d["ts"],
-        "decision": d["decision"],
-        "confidence": d["confidence"],
-        "weighted_score": weighted_score,
-        "scores": scores,
-        "step_percent": step_percent,
-        "hint": hint,
-        "current_exposure": current_exposure,
-        "target_exposure": target_exposure,
-        "adjusted_step_percent": adjusted_step_percent,
-        "min_exposure": MIN_EXPOSURE,
-    }
+    return compute_portfolio_plan(
+        engine=engine,
+        text=text,
+        symbol=SYMBOL_ETHUSDT,
+        min_exposure=MIN_EXPOSURE,
+        current_exposure=current_exposure,
+        clamp=clamp,
+    )
 
 app.include_router(ai_router)
 
