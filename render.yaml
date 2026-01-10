@@ -1,0 +1,10 @@
+services:
+  - type: cron
+    name: eth-run-all-15m
+    runtime: python
+    schedule: "*/15 * * * *"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "./scripts/trigger_run_all.sh"
+    envVars:
+      - key: BACKEND_URL
+        value: "https://eth-score-saas-backend.onrender.com"
